@@ -1,12 +1,12 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { createVPC } from './supportingCode/vpc';
+import { createFargate } from "./supportingCode/fargate";
 
 
-export class FactorioEcsFargateServerInfrastructureStack extends Stack {
+export class mcEcsFargateServerStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    createVPC(this);
+    createFargate(this);
   }
 }

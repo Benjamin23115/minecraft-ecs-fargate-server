@@ -1,5 +1,5 @@
 {
-  "app": "npx ts-node --prefer-ts-exts bin/factorio-ecs-fargate-server.ts",
+  "app": "npx ts-node --prefer-ts-exts bin/mc-ecs-fargate-server.ts",
   "watch": {
     "include": [
       "**"

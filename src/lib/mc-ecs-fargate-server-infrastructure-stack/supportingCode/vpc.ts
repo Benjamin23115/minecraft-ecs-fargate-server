@@ -6,7 +6,7 @@ import { ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import { RemovalPolicy } from "aws-cdk-lib";
 
 export function createVPC(stack:Construct) {
-  const vpcName = "factorio-ecs-fargate-server-vpc";
+  const vpcName = "mc-ecs-fargate-server-vpc";
   const vpc = new Vpc(stack, "Vpc", {
     vpcName,
     ipAddresses:IpAddresses.cidr("10.30.15.0/24"),
@@ -23,7 +23,7 @@ export function createVPC(stack:Construct) {
   });
 
   const vpcRole = new Role(stack, "RoleVpcFlowLogs", {
-    assumedBy: new ServicePrincipal("vpc-flow-amazonaws.com"),
+    assumedBy: new ServicePrincipal("vpc-flow-logs.amazonaws.com"),
     managedPolicies: [
       ManagedPolicy.fromAwsManagedPolicyName("CloudWatchFullAccess"),
     ],

@@ -1,8 +1,8 @@
 {
-  "name": "factorio-ecs-fargate-server",
+  "name": "mc-ecs-fargate-server",
   "version": "0.1.0",
   "bin": {
-    "factorio-ecs-fargate-server": "bin/factorio-ecs-fargate-server.js"
+    "mc-ecs-fargate-server": "bin/mc-ecs-fargate-server.js"
   },
   "scripts": {
     "build": "tsc",

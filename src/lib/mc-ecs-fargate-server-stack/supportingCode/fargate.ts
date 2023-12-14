@@ -11,34 +11,34 @@ export function createFargate(stack: Construct) {
 
   const { deploymentType } = process.env;
 
-  const logGroup = new LogGroup(stack, "factorio-server-log-group", {
-    logGroupName:`/ecs/${deploymentType}-Factorio-Server`,
+  const logGroup = new LogGroup(stack, "mc-server-log-group", {
+    logGroupName:`/ecs/${deploymentType}-mc-Server`,
     removalPolicy:RemovalPolicy.DESTROY,
   })
 
   const vpc = Vpc.fromLookup(stack, "vpc", {
-    vpcName:"factorio-ecs-fargate-server-vpc",
+    vpcName:"mc-ecs-fargate-server-vpc",
   });
 
-  const fargateFactorioServerRoleName =  "Factorio-server-ecs-task-role"
-  const fargateFactorioServerRole = new Role(stack, "Factorio-server-ecs-task-role", {
+  const fargatemcServerRoleName =  "mc-server-ecs-task-role"
+  const fargatemcServerRole = new Role(stack, "mc-server-ecs-task-role", {
     assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
     managedPolicies: [
       ManagedPolicy.fromAwsManagedPolicyName(
         "service-role/AmazonECSTaskExecutionRolePolicy"
       ),
     ],
-    roleName:`${deploymentType}-${fargateFactorioServerRoleName}`,
+    roleName:`${deploymentType}-${fargatemcServerRoleName}`,
   });
 
-  const efsSecurityGroupName = "factorio-server-efs-security-group"
+  const efsSecurityGroupName = "mc-server-efs-security-group"
   const efsSG = new SecurityGroup(stack, efsSecurityGroupName, {
     vpc,
     allowAllOutbound: true,
     securityGroupName: `${deploymentType}-${efsSecurityGroupName}`,
   });
 
-  const ec2EFSMaintenanceSecurityGroupName = "factorio-server-efs-ec2-maintenance-security-group"
+  const ec2EFSMaintenanceSecurityGroupName = "mc-server-efs-ec2-maintenance-security-group"
   const ec2EFSMaintenanceSecurityGroup = new SecurityGroup(stack, ec2EFSMaintenanceSecurityGroupName, {
     vpc,
     allowAllOutbound: true,
@@ -52,19 +52,19 @@ export function createFargate(stack: Construct) {
   );
 
   // Create the file system
-  const factorioDataEFS = new FileSystem(stack, "factorio-server-efs", {
+  const mcDataEFS = new FileSystem(stack, "mc-server-efs", {
     vpc,
     lifecyclePolicy: LifecyclePolicy.AFTER_14_DAYS,
     performanceMode: PerformanceMode.GENERAL_PURPOSE,
     throughputMode: ThroughputMode.BURSTING,
     removalPolicy: RemovalPolicy.DESTROY,
     securityGroup:efsSG,
-    fileSystemName:`${deploymentType}-factorio-server-efs`,
+    fileSystemName:`${deploymentType}-mc-server-efs`,
     allowAnonymousAccess:true,
   });
 
-  const factorioDataEFSAccessPoint = new AccessPoint(stack, "factorio-server-efs-access-point",  {
-    fileSystem: factorioDataEFS,
+  const mcDataEFSAccessPoint = new AccessPoint(stack, "mc-server-efs-access-point",  {
+    fileSystem: mcDataEFS,
     path: "/",
     createAcl: {
      ownerGid: "1000",
@@ -89,47 +89,50 @@ export function createFargate(stack: Construct) {
    * | 16384     | Between 32 GB and 120 GB in 8 GB increments     | Linux                                       |
    */
 
-  const taskVolumeName = `${deploymentType}-factorio-server-task-volume`;
-  const taskDefinition = new TaskDefinition(stack, "factorio-task-definition", {
+  const taskVolumeName = `${deploymentType}-mc-server-task-volume`;
+  const taskDefinition = new TaskDefinition(stack, "mc-task-definition", {
     compatibility: Compatibility.FARGATE,
     cpu: "2048",
     memoryMiB: "4096",
     networkMode: NetworkMode.AWS_VPC,
-    taskRole: fargateFactorioServerRole,
+    taskRole: fargatemcServerRole,
     volumes:[
       {
         name: taskVolumeName,
         efsVolumeConfiguration: {
           rootDirectory:"/",
-          fileSystemId: factorioDataEFS.fileSystemId,
+          fileSystemId: mcDataEFS.fileSystemId,
         },
       }
     ],
   });
 
-  const container = taskDefinition.addContainer("factorio-container", {
-    containerName:`${deploymentType}-factorio-server-container`,
-    image: ContainerImage.fromRegistry("factoriotools/factorio:stable"),
+  const container = taskDefinition.addContainer("mc-container", {
+    containerName:`${deploymentType}-mc-server-container`,
+    image: ContainerImage.fromRegistry("mctools/mc:stable"),
     logging: LogDriver.awsLogs({
-      streamPrefix: "factorio-server-logs",
+      streamPrefix: "mc-server-logs",
       logGroup: logGroup,
     }),
   });
-
-  container.addPortMappings({name:"factorio-udp-mapping", containerPort: 34197, protocol:Protocol.UDP, hostPort:34197 });
-  container.addPortMappings({name:"factorio-tcp-mapping", containerPort: 27015, protocol:Protocol.TCP, hostPort:27015 });
+// The following port mappings are for java edition.
+  container.addPortMappings({name:"mc-udp-mapping", containerPort: 25565, protocol:Protocol.UDP, hostPort:25565 });
+  container.addPortMappings({name:"mc-tcp-mapping", containerPort: 25565, protocol:Protocol.TCP, hostPort:25565 });
+  // The following port mappings are for bedrock edition. 
+  container.addPortMappings({name:"geyser-udp-mapping", containerPort: 19132, protocol:Protocol.UDP, hostPort:19132 });
+  container.addPortMappings({name:"geyser-tcp-mapping", containerPort: 19132, protocol:Protocol.TCP, hostPort:19132 });
 
   container.addMountPoints({
-    containerPath: '/factorio',
+    containerPath: '/mc',
     sourceVolume: taskVolumeName,
     readOnly: false,
   });
 
 
-  const ecsSG = new SecurityGroup(stack, "factorio-ecs-security-group", {
+  const ecsSG = new SecurityGroup(stack, "mc-ecs-security-group", {
     vpc,
     allowAllOutbound: true,
-    securityGroupName:`${deploymentType}-factorio-server-ecs-security-group`
+    securityGroupName:`${deploymentType}-mc-server-ecs-security-group`
   });
 
   // EFS connection from ecs task
@@ -141,25 +144,37 @@ export function createFargate(stack: Construct) {
 
   ecsSG.addIngressRule(
     Peer.anyIpv4(),
-    Port.tcp(27015),
-    "IP range for TCP for Factorio"
+    Port.tcp(25565),
+    "IP range for TCP for mc"
   );
 
   ecsSG.addIngressRule(
     Peer.anyIpv4(),
-    Port.udp(34197),
-    "IP range for UDP for Factorio"
+    Port.udp(25565),
+    "IP range for UDP for mc"
   );
 
-  const cluster = new Cluster(stack, "factorio-server-cluster", {
+  ecsSG.addIngressRule(
+    Peer.anyIpv4(),
+    Port.tcp(19132),
+    "IP range for TCP for geyser"
+  );
+
+  ecsSG.addIngressRule(
+    Peer.anyIpv4(),
+    Port.udp(19132),
+    "IP range for UDP for geyser"
+  );
+
+  const cluster = new Cluster(stack, "mc-server-cluster", {
     vpc,
     containerInsights: true,
-    clusterName:`${deploymentType}-factorio-server-cluster`,
+    clusterName:`${deploymentType}-mc-server-cluster`,
     enableFargateCapacityProviders: true,
   });
 
-  const service = new FargateService(stack, "factorio-server-service", {
-    serviceName:`${deploymentType}-factorio-server-ecs-service`,
+  const service = new FargateService(stack, "mc-server-service", {
+    serviceName:`${deploymentType}-mc-server-ecs-service`,
     cluster,
     taskDefinition,
     desiredCount: 1,
