@@ -109,7 +109,7 @@ export function createFargate(stack: Construct) {
 
   const container = taskDefinition.addContainer("mc-container", {
     containerName:`${deploymentType}-mc-server-container`,
-    image: ContainerImage.fromRegistry("mctools/mc:stable"),
+    image: ContainerImage.fromRegistry("marctv/minecraft-papermc-server:latest"),
     logging: LogDriver.awsLogs({
       streamPrefix: "mc-server-logs",
       logGroup: logGroup,
