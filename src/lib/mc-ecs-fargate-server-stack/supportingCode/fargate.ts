@@ -123,7 +123,7 @@ export function createFargate(stack: Construct) {
   container.addPortMappings({name:"geyser-tcp-mapping", containerPort: 19132, protocol:Protocol.TCP, hostPort:19132 });
 
   container.addMountPoints({
-    containerPath: '/mc',
+    containerPath: '/data',
     sourceVolume: taskVolumeName,
     readOnly: false,
   });
